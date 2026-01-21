@@ -1,4 +1,4 @@
-# Prédiction des Émissions de CO2 et Consommation Énergétique - Ville de Seattle
+# 🏢 Prédiction des Émissions de CO2 et Consommation Énergétique - Seattle
 
 ![Python](https://img.shields.io/badge/Python-3.8+-3776AB?style=flat&logo=python&logoColor=white)
 ![scikit-learn](https://img.shields.io/badge/scikit--learn-1.0+-F7931E?style=flat&logo=scikit-learn&logoColor=white)
@@ -9,198 +9,222 @@
 ![License](https://img.shields.io/badge/License-MIT-green?style=flat)
 ![Status](https://img.shields.io/badge/Status-Completed-success?style=flat)
 
-## Contexte du Projet
+> **🎯 Résumé** : Modèle ML prédisant les émissions CO2 de 1,650 bâtiments de Seattle avec **45% d'amélioration** vs baseline, utilisant Random Forest optimisé et interprétabilité SHAP. Projet réalisé dans le cadre de l'objectif de neutralité carbone 2050 de la ville.
 
-Ce projet a été réalisé dans le cadre de l'objectif ambitieux de la ville de Seattle d'atteindre la **neutralité carbone d'ici 2050**. L'analyse porte sur les bâtiments non résidentiels et vise à prédire leurs émissions de CO2 et leur consommation totale d'énergie à partir de caractéristiques structurelles.
+---
 
-## Objectifs
+## 📑 Table des Matières
 
-- Prédire les **émissions de CO2** des bâtiments non résidentiels
-- Prédire la **consommation totale d'énergie** des bâtiments
-- Identifier les facteurs clés influençant ces métriques
-- Fournir des insights pour aider la ville dans sa stratégie de réduction des émissions
+- [Contexte](#-contexte)
+- [Résultats Clés](#-résultats-clés)
+- [Dataset](#-dataset)
+- [Méthodologie](#-méthodologie)
+- [Structure du Projet](#-structure-du-projet)
+- [Installation](#-installation)
+- [Compétences Démontrées](#-compétences-démontrées)
+- [Auteur](#-auteur)
 
-## Jeu de Données
+---
 
-**Source** : [2016 Building Energy Benchmarking](https://data.seattle.gov/dataset/2016-Building-Energy-Benchmarking/2bpz-gwpy)
+## 🌍 Contexte
 
-- **Période** : Données de 2016
-- **Scope** : Bâtiments non résidentiels de Seattle
-- **Observations** : ~1,650 bâtiments après nettoyage
-- **Variables** : 40+ features incluant :
-  - Caractéristiques structurelles (surface, nombre d'étages, âge)
-  - Type de propriété
-  - Consommation énergétique (électricité, gaz naturel, vapeur)
-  - Score ENERGY STAR
-  - Localisation (district)
+La ville de Seattle s'est fixé l'objectif ambitieux d'atteindre la **neutralité carbone d'ici 2050**. Ce projet développe des modèles de Machine Learning pour :
 
-## Méthodologie
+- 🔋 **Prédire la consommation énergétique** des bâtiments non résidentiels
+- 🌿 **Prédire les émissions de CO2** (gaz à effet de serre)
+- 🔍 **Identifier les facteurs clés** influençant ces métriques
+- 💡 **Fournir des recommandations** pour la stratégie de réduction des émissions
 
-### 1. Exploration et Analyse des Données
+---
 
-**Notebook** : `01_exploration.ipynb`
+## 🏆 Résultats Clés
 
-- Analyse exploratoire approfondie (EDA)
-- Visualisation des distributions et corrélations
-- Détection et traitement des valeurs aberrantes
-- Analyse des valeurs manquantes
-- Feature engineering :
-  - Création de la variable `Age` (DataYear - YearBuilt)
-  - Ratios de surface (parking, bâtiment)
-  - Pourcentages d'utilisation énergétique par source
+| Métrique | Valeur |
+|----------|--------|
+| **Meilleur modèle** | Random Forest |
+| **RMSE** | 12,877,388 kBtu |
+| **Amélioration vs Baseline** | **45.5%** |
+| **Modèles testés** | 18 |
+| **Cross-validation** | 10-fold |
 
-### 2. Preprocessing et Nettoyage
+### Top 5 Features les Plus Importantes
 
-- **Filtrage** : Exclusion des bâtiments multifamiliaux (focus sur non-résidentiel)
-- **Traitement des outliers** : Suppression basée sur la colonne `Outlier`
-- **Valeurs manquantes** : Imputation par IterativeImputer (MICE)
-- **Encodage** : One-Hot Encoding pour les variables catégorielles
-- **Normalisation** : StandardScaler appliqué aux features numériques
-- **Transformations** : log1p sur features asymétriques (PropertyGFATotal, NumberofFloors, etc.)
+1. 📐 **PropertyGFATotal** — Surface totale du bâtiment
+2. 🏗️ **LargestPropertyUseTypeGFA** — Surface de l'usage principal
+3. ⭐ **ENERGYSTARScore** — Score de performance énergétique
+4. 📅 **Age** — Âge du bâtiment
+5. 🏢 **NumberofFloors** — Nombre d'étages
 
-### 3. Modélisation Prédictive
+### Comparaison des Modèles
 
-**Notebooks** : `02_prediction_energy.ipynb` et `03_prediction_co2.ipynb`
+| Rang | Modèle | RMSE | Amélioration |
+|------|--------|------|--------------|
+| 🥇 | **Random Forest** | 12,877,388 | +45.5% |
+| 🥈 | Gradient Boosting (TT) | 14,282,043 | +39.6% |
+| 🥉 | AdaBoost | 14,605,126 | +38.2% |
+| 4 | SVR (TT) | 15,288,219 | +35.3% |
+| 5 | XGBoost (TT) | 15,457,243 | +34.6% |
+| ... | Baseline (Mean) | 23,631,178 | 0% |
 
-#### Variable Cible
-- **SiteEnergyUseWN(kBtu)** : Consommation énergétique totale du site (normalisée)
-- **TotalGHGEmissions** : Émissions totales de gaz à effet de serre
+*TT = TransformedTargetRegressor avec log1p*
 
-#### Modèles Testés
+---
 
-| Modèle | RMSE (meilleur) | Notes |
-|--------|-----------------|-------|
-| **Random Forest** | **12,877,388** | Meilleur modèle |
-| Gradient Boosting (TT) | 14,282,043 | Avec transformation de target |
-| AdaBoost | 14,605,126 | Performance stable |
-| Random Forest (TT) | 14,733,536 | Avec transformation |
-| SVR (TT) | 15,288,219 | Support Vector Regression |
-| XGBoost (TT) | 15,457,243 | Bon compromis |
-| Gradient Boosting | 16,706,326 | Sans transformation |
-| XGBoost | 17,715,226 | Baseline XGBoost |
-| Linear Regression | 20,432,949 | Modèle linéaire simple |
-| Ridge | 21,623,647 | Régularisation L2 |
-| Lasso | 23,144,680 | Régularisation L1 |
-| **Baseline (Mean)** | 23,631,178 | Référence |
+## 📊 Dataset
 
-**TT** = TransformedTargetRegressor avec transformation log1p
+**Source** : [Seattle 2016 Building Energy Benchmarking](https://data.seattle.gov/dataset/2016-Building-Energy-Benchmarking/2bpz-gwpy)
 
-#### Optimisation des Hyperparamètres
+| Caractéristique | Valeur |
+|-----------------|--------|
+| **Période** | 2016 |
+| **Observations** | ~1,650 bâtiments (après nettoyage) |
+| **Features** | 40+ variables |
+| **Scope** | Bâtiments non résidentiels |
 
-Utilisation de **GridSearchCV** avec validation croisée (10-fold) pour tous les modèles.
+**Types de variables** :
+- Structurelles : surface, étages, âge
+- Énergétiques : consommation électricité, gaz, vapeur
+- Performance : Score ENERGY STAR
+- Localisation : district municipal
 
-**Métriques d'évaluation** :
-- RMSE (Root Mean Squared Error) - métrique principale
-- MSE (Mean Squared Error)
-- MAE (Mean Absolute Error)
-- R² (Coefficient de détermination)
+---
 
-### 4. Interprétabilité
+## 🔬 Méthodologie
 
-**Techniques utilisées** :
-- **Feature Importance** : Identification des variables les plus influentes
-- **SHAP Values** : Analyse de l'impact de chaque feature sur les prédictions
-- **SHAP Force Plots** : Visualisation des contributions individuelles
-
-#### Top Features
-1. **PropertyGFATotal** : Surface totale du bâtiment
-2. **LargestPropertyUseTypeGFA** : Surface de l'usage principal
-3. **ENERGYSTARScore** : Score de performance énergétique
-4. **Age** : Âge du bâtiment
-5. **NumberofFloors** : Nombre d'étages
-
-## Résultats Clés
-
-- **Réduction de l'erreur de 45%** par rapport au modèle baseline (Random Forest)
-- **ENERGYSTARScore** est une variable importante mais non indispensable
-- Les caractéristiques **structurelles** (surface, étages) sont les prédicteurs les plus forts
-- Les **types de bâtiments** (bureaux, hôtels, écoles) ont un impact significatif
-
-## Structure du Projet
+### Pipeline ML Complet
 
 ```
-Projet_3/
-├── data/
-│   └── 2016_Building_Energy_Benchmarking.csv  # Données brutes
-├── notebooks/
-│   ├── 01_exploration.ipynb                   # Analyse exploratoire
-│   ├── 02_prediction_energy.ipynb             # Prédiction consommation
-│   └── 03_prediction_co2.ipynb                # Prédiction CO2
-├── Projet_3_Thomas_Mebarki/                   # Livrables originaux
-├── .gitignore
-├── requirements.txt
-├── README.md
-└── ROADMAP.md
+┌─────────────┐    ┌─────────────┐    ┌─────────────┐    ┌─────────────┐
+│     EDA     │ -> │ Preprocessing│ -> │ Modélisation│ -> │   SHAP      │
+│             │    │             │    │             │    │             │
+│ • Distrib.  │    │ • Imputation│    │ • 18 modèles│    │ • Feature   │
+│ • Outliers  │    │ • Encoding  │    │ • GridSearch│    │   Importance│
+│ • Corrélat. │    │ • Scaling   │    │ • 10-fold CV│    │ • Force Plot│
+└─────────────┘    └─────────────┘    └─────────────┘    └─────────────┘
 ```
 
-## Installation et Utilisation
+### Notebooks
+
+| # | Notebook | Description |
+|---|----------|-------------|
+| 1 | `01_exploration.ipynb` | EDA, feature engineering, nettoyage |
+| 2 | `02_prediction_energy.ipynb` | Modélisation consommation énergétique |
+| 3 | `03_prediction_co2.ipynb` | Modélisation émissions CO2 |
+
+### Techniques Utilisées
+
+- **Imputation** : IterativeImputer (MICE)
+- **Encoding** : One-Hot Encoding
+- **Scaling** : StandardScaler
+- **Transformation** : log1p pour features asymétriques
+- **Optimisation** : GridSearchCV avec validation croisée
+- **Interprétabilité** : SHAP values
+
+---
+
+## 📁 Structure du Projet
+
+```
+Anticiper_besoins_des_batiments/
+│
+├── 📂 data/
+│   ├── 2016_Building_Energy_Benchmarking.csv   # Données brutes
+│   └── data_cleaned.csv                        # Données nettoyées
+│
+├── 📂 notebooks/
+│   ├── 01_exploration.ipynb                    # EDA & Feature Engineering
+│   ├── 02_prediction_energy.ipynb              # Modèles consommation
+│   └── 03_prediction_co2.ipynb                 # Modèles émissions CO2
+│
+├── 📂 models/                                  # Modèles sauvegardés
+│   └── random_forest_best.pkl                  # Meilleur modèle
+│
+├── 📄 README.md                                # Ce fichier
+├── 📄 requirements.txt                         # Dépendances Python
+├── 📄 LICENSE                                  # Licence MIT
+└── 📄 .gitignore                               # Fichiers ignorés
+```
+
+---
+
+## 🚀 Installation
 
 ### Prérequis
 
 - Python 3.8+
-- Jupyter Notebook
+- pip
 
-### Installation
+### Installation rapide
 
 ```bash
 # Cloner le repository
 git clone https://github.com/ThomasMeb/Anticiper_besoins_des_batiments.git
 cd Anticiper_besoins_des_batiments
 
-# Créer un environnement virtuel (recommandé)
+# Créer environnement virtuel
 python -m venv venv
-source venv/bin/activate  # Sur Windows: venv\Scripts\activate
+source venv/bin/activate  # Windows: venv\Scripts\activate
 
-# Installer les dépendances
+# Installer dépendances
 pip install -r requirements.txt
-```
 
-### Exécution
-
-```bash
-# Lancer Jupyter Notebook
+# Lancer Jupyter
 jupyter notebook
-
-# Ouvrir les notebooks dans l'ordre :
-# 1. notebooks/01_exploration.ipynb
-# 2. notebooks/02_prediction_energy.ipynb
-# 3. notebooks/03_prediction_co2.ipynb
 ```
 
-## Compétences Techniques Démontrées
+### Ordre d'exécution des notebooks
 
-- **Data Science** : EDA, feature engineering, data cleaning
-- **Machine Learning** : Régression, ensembles methods, hyperparameter tuning
-- **Preprocessing** : Imputation, encoding, scaling, transformations
-- **Évaluation** : Cross-validation, métriques multiples, model comparison
-- **Interprétabilité** : Feature importance, SHAP values
-- **Python** : pandas, scikit-learn, XGBoost, matplotlib, seaborn
-
-## Améliorations Potentielles
-
-- Collecte de données temporelles pour analyse de séries chronologiques
-- Intégration de données météorologiques
-- Déploiement d'un modèle en production (API REST)
-- Dashboard interactif pour les décideurs
-- Analyse géospatiale des émissions par quartier
-
-## Auteur
-
-**Thomas Mebarki**
-
-- GitHub : [ThomasMeb](https://github.com/ThomasMeb)
-- LinkedIn : [Thomas Mebarki](https://www.linkedin.com/in/thomas-mebarki/)
-- Portfolio : [À venir]
-
-## Licence
-
-Ce projet a été réalisé à des fins éducatives dans le cadre d'une formation en Data Science.
-
-## Remerciements
-
-- Ville de Seattle pour la mise à disposition des données
-- [OpenClassrooms / Votre organisme de formation] pour l'encadrement du projet
+1. `notebooks/01_exploration.ipynb`
+2. `notebooks/02_prediction_energy.ipynb`
+3. `notebooks/03_prediction_co2.ipynb`
 
 ---
 
-*Dernière mise à jour : Janvier 2024*
+## 💼 Compétences Démontrées
+
+| Domaine | Compétences |
+|---------|-------------|
+| **Data Science** | EDA, feature engineering, data cleaning |
+| **Machine Learning** | Régression, ensembles, hyperparameter tuning |
+| **Preprocessing** | Imputation MICE, encoding, scaling |
+| **Évaluation** | Cross-validation, métriques multiples |
+| **Interprétabilité** | SHAP values, feature importance |
+| **Python** | pandas, scikit-learn, XGBoost, matplotlib |
+
+---
+
+## 🔮 Améliorations Futures
+
+- [ ] Dashboard interactif (Streamlit)
+- [ ] API REST pour prédictions en temps réel
+- [ ] Intégration données météorologiques
+- [ ] Analyse géospatiale par quartier
+- [ ] Séries temporelles (données multi-années)
+
+---
+
+## 👤 Auteur
+
+**Thomas Mebarki**
+
+[![GitHub](https://img.shields.io/badge/GitHub-ThomasMeb-181717?style=flat&logo=github)](https://github.com/ThomasMeb)
+[![LinkedIn](https://img.shields.io/badge/LinkedIn-Thomas%20Mebarki-0A66C2?style=flat&logo=linkedin)](https://www.linkedin.com/in/thomas-mebarki/)
+
+---
+
+## 📜 Licence
+
+Ce projet est sous licence MIT - voir le fichier [LICENSE](LICENSE) pour plus de détails.
+
+---
+
+## 🙏 Remerciements
+
+- **Ville de Seattle** pour la mise à disposition des données open data
+- **OpenClassrooms** pour l'encadrement pédagogique
+
+---
+
+<p align="center">
+  <i>Dernière mise à jour : Janvier 2024</i>
+</p>
