@@ -8,6 +8,7 @@
 ![SHAP](https://img.shields.io/badge/SHAP-Interpretability-00BFFF?style=flat)
 ![License](https://img.shields.io/badge/License-MIT-green?style=flat)
 ![Status](https://img.shields.io/badge/Status-Completed-success?style=flat)
+![Streamlit](https://img.shields.io/badge/Streamlit-App-FF4B4B?style=flat&logo=streamlit&logoColor=white)
 
 > **🎯 Résumé** : Modèle ML prédisant les émissions CO2 de 1,650 bâtiments de Seattle avec **45% d'amélioration** vs baseline, utilisant Random Forest optimisé et interprétabilité SHAP. Projet réalisé dans le cadre de l'objectif de neutralité carbone 2050 de la ville.
 
@@ -15,6 +16,7 @@
 
 ## 📑 Table des Matières
 
+- [Demo](#-demo)
 - [Contexte](#-contexte)
 - [Résultats Clés](#-résultats-clés)
 - [Dataset](#-dataset)
@@ -23,6 +25,30 @@
 - [Installation](#-installation)
 - [Compétences Démontrées](#-compétences-démontrées)
 - [Auteur](#-auteur)
+
+---
+
+## 🚀 Demo
+
+### Application Streamlit Interactive
+
+[![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://seattle-co2-predictor.streamlit.app)
+
+Testez le modèle en temps réel avec notre application web :
+
+```bash
+# Lancer en local
+streamlit run app.py
+```
+
+**Fonctionnalités :**
+- 🏢 Saisie des caractéristiques du bâtiment
+- 🔋 Prédiction de la consommation énergétique
+- 🌿 Estimation des émissions CO2
+- 📊 Visualisation de l'impact des facteurs
+- 💡 Recommandations personnalisées
+
+![App Screenshot](docs/app_screenshot.png)
 
 ---
 
@@ -139,6 +165,7 @@ Anticiper_besoins_des_batiments/
 ├── 📂 models/                                  # Modèles sauvegardés
 │   └── random_forest_best.pkl                  # Meilleur modèle
 │
+├── 📄 app.py                                   # 🚀 Application Streamlit
 ├── 📄 README.md                                # Ce fichier
 ├── 📄 requirements.txt                         # Dépendances Python
 ├── 📄 LICENSE                                  # Licence MIT
@@ -195,7 +222,8 @@ jupyter notebook
 
 ## 🔮 Améliorations Futures
 
-- [ ] Dashboard interactif (Streamlit)
+- [x] ~~Dashboard interactif (Streamlit)~~ ✅
+- [ ] Déploiement sur Streamlit Cloud
 - [ ] API REST pour prédictions en temps réel
 - [ ] Intégration données météorologiques
 - [ ] Analyse géospatiale par quartier
