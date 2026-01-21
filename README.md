@@ -144,8 +144,8 @@ Projet_3/
 
 ```bash
 # Cloner le repository
-git clone https://github.com/ThomasMeb/Projet_3.git
-cd Projet_3
+git clone https://github.com/ThomasMeb/Anticiper_besoins_des_batiments.git
+cd Anticiper_besoins_des_batiments
 
 # Créer un environnement virtuel (recommandé)
 python -m venv venv
