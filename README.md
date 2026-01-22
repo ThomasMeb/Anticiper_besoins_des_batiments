@@ -204,7 +204,7 @@ Les facteurs ayant le plus d'impact sur la consommation :
 
 ### Application Streamlit
 
-[![Open in Streamlit](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://seattle-co2-predictor.streamlit.app)
+[![Open in Streamlit](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://anticiperbesoinsdesbatiments-caxqew8gtaanhb2dtpztzm.streamlit.app/)
 
 **Fonctionnalités** :
 - 🎛️ Inputs interactifs (sliders, selects)
