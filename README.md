@@ -220,7 +220,11 @@ streamlit run app.py
 ### Aperçu
 
 <p align="center">
-  <img src="docs/assets/app_screenshot.png" alt="App Screenshot" width="700">
+  <img src="docs/assets/app_screenshot_2.png" alt="Prédiction énergétique" width="700">
+</p>
+
+<p align="center">
+  <img src="docs/assets/app_screenshot_1.png" alt="Analyse des facteurs d'impact" width="700">
 </p>
 
 ---
