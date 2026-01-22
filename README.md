@@ -8,7 +8,7 @@
 ![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)
 
 <p align="center">
-  <img src="docs/assets/banner.png" alt="Seattle Skyline" width="800">
+  <img src="docs/assets/banner.jpg" alt="Seattle Skyline" width="800">
 </p>
 
 > **🎯 Mission** : Développer un outil ML prédisant la consommation énergétique et les émissions CO2 des bâtiments non résidentiels de Seattle, dans le cadre de l'objectif de **neutralité carbone 2050**.
