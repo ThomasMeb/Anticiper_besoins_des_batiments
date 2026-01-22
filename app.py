@@ -9,6 +9,7 @@ import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
 from pathlib import Path
+import joblib
 
 # Configuration de la page
 st.set_page_config(
@@ -19,68 +20,77 @@ st.set_page_config(
 )
 
 # =============================================================================
-# CHARGEMENT DES DONNÉES ET MODÈLE
+# CHARGEMENT DES MODÈLES ML
 # =============================================================================
 
-@st.cache_data
-def load_data():
-    """Charge les données pour les statistiques et références."""
-    data_path = Path("data/data.csv")
-    if data_path.exists():
-        return pd.read_csv(data_path, index_col=0)
-
-    # Fallback sur données brutes
-    raw_path = Path("data/2016_Building_Energy_Benchmarking.csv")
-    if raw_path.exists():
-        return pd.read_csv(raw_path)
-
-    return None
-
 @st.cache_resource
-def load_model():
-    """Charge le modèle pré-entraîné ou crée un modèle simple."""
-    import joblib
-    from sklearn.ensemble import RandomForestRegressor
-    from sklearn.preprocessing import StandardScaler
+def load_models():
+    """Charge les modèles ML pré-entraînés."""
+    models = {}
 
-    model_path = Path("models/random_forest_best.pkl")
+    # Modèle énergie
+    energy_model_path = Path("models/energy_model.joblib")
+    energy_scaler_path = Path("models/energy_scaler.joblib")
+    energy_features_path = Path("models/energy_features.joblib")
 
-    if model_path.exists():
-        return joblib.load(model_path)
+    if energy_model_path.exists():
+        models['energy_model'] = joblib.load(energy_model_path)
+        models['energy_scaler'] = joblib.load(energy_scaler_path)
+        models['energy_features'] = joblib.load(energy_features_path)
 
-    # Créer un modèle simple si pas de modèle sauvegardé
-    data = load_data()
-    if data is not None:
-        # Préparation simplifiée
-        numeric_cols = data.select_dtypes(include=[np.number]).columns.tolist()
+    # Modèle CO2
+    co2_model_path = Path("models/co2_model.joblib")
+    co2_scaler_path = Path("models/co2_scaler.joblib")
 
-        # Identifier la target
-        target_candidates = ['SiteEnergyUseWN(kBtu)', 'SiteEnergyUse(kBtu)']
-        target = None
-        for t in target_candidates:
-            if t in numeric_cols:
-                target = t
-                break
+    if co2_model_path.exists():
+        models['co2_model'] = joblib.load(co2_model_path)
+        models['co2_scaler'] = joblib.load(co2_scaler_path)
 
-        if target:
-            feature_cols = [c for c in numeric_cols if c != target and 'GHG' not in c and 'EUI' not in c]
-            X = data[feature_cols].dropna()
-            y = data.loc[X.index, target]
+    return models if models else None
 
-            scaler = StandardScaler()
-            X_scaled = scaler.fit_transform(X)
+def prepare_features(property_gfa, floors, age, energy_star, building_type, feature_names):
+    """Prépare les features pour la prédiction."""
+    # Features structurelles de base
+    features = {
+        'Age': age,
+        'NumberofBuildings': 1,
+        'NumberofFloors': floors,
+        'PropertyGFATotal': property_gfa,
+        'PropertyGFAParking_Pct': 5.0,  # Valeur moyenne
+        'PropertyGFABuilding_Pct': 95.0,  # Valeur moyenne
+        'LargestPropertyUseTypeGFA': property_gfa * 0.8,  # 80% de la surface totale
+        'ENERGYSTARScore': energy_star
+    }
 
-            rf = RandomForestRegressor(n_estimators=50, max_depth=10, random_state=42, n_jobs=-1)
-            rf.fit(X_scaled, y)
+    # Mapping des types de bâtiments vers les colonnes one-hot
+    type_mapping = {
+        "Office (Small/Mid)": "PropType_Small- and Mid-Sized Office",
+        "Office (Large)": "PropType_Large Office",
+        "Hotel": "PropType_Hotel",
+        "Retail Store": "PropType_Retail Store",
+        "Warehouse": "PropType_Warehouse",
+        "K-12 School": "PropType_K-12 School",
+        "University": "PropType_University",
+        "Hospital": "PropType_Other",
+        "Other": "PropType_Other"
+    }
 
-            return {
-                'model': rf,
-                'scaler': scaler,
-                'feature_names': feature_cols,
-                'target': target
-            }
+    # Initialiser toutes les features à 0
+    all_features = {name: 0 for name in feature_names}
 
-    return None
+    # Remplir les features structurelles
+    for key, value in features.items():
+        if key in all_features:
+            all_features[key] = value
+
+    # Activer le type de bâtiment approprié
+    prop_type_col = type_mapping.get(building_type, "PropType_Other")
+    if prop_type_col in all_features:
+        all_features[prop_type_col] = 1
+
+    # Créer le DataFrame dans l'ordre correct
+    df = pd.DataFrame([all_features])[feature_names]
+    return df
 
 # =============================================================================
 # INTERFACE UTILISATEUR
@@ -146,43 +156,42 @@ def main():
         ]
     )
 
+    # Charger les modèles
+    models = load_models()
+
+    # Prédiction avec les vrais modèles ML
+    if models and 'energy_model' in models:
+        feature_names = models['energy_features']
+        X = prepare_features(property_gfa, floors, age, energy_star, building_type, feature_names)
+        X_scaled = models['energy_scaler'].transform(X)
+        predicted_energy = models['energy_model'].predict(X_scaled)[0]
+        predicted_co2 = models['co2_model'].predict(models['co2_scaler'].transform(X))[0]
+        using_ml = True
+    else:
+        # Fallback heuristique si modèles non disponibles
+        base_consumption = property_gfa * 50
+        floor_factor = 1 + (floors - 1) * 0.02
+        age_factor = 1 + (age / 100) * 0.3
+        energy_star_factor = 2 - (energy_star / 100)
+        type_factors = {"Office (Small/Mid)": 0.9, "Office (Large)": 1.1, "Hotel": 1.3,
+                       "Retail Store": 0.85, "Warehouse": 0.6, "K-12 School": 0.8,
+                       "University": 1.0, "Hospital": 1.5, "Other": 1.0}
+        type_factor = type_factors.get(building_type, 1.0)
+        predicted_energy = base_consumption * floor_factor * age_factor * energy_star_factor * type_factor
+        predicted_co2 = predicted_energy * 0.0001
+        using_ml = False
+
     # Colonnes principales
     col1, col2 = st.columns(2)
 
     with col1:
         st.subheader("🔋 Prédiction de Consommation")
 
-        # Calcul simplifié basé sur des heuristiques
-        # (En production, on utiliserait le vrai modèle)
-        base_consumption = property_gfa * 50  # kBtu/sqft moyen
-
-        # Ajustements
-        floor_factor = 1 + (floors - 1) * 0.02
-        age_factor = 1 + (age / 100) * 0.3
-        energy_star_factor = 2 - (energy_star / 100)
-
-        # Type de bâtiment
-        type_factors = {
-            "Office (Small/Mid)": 0.9,
-            "Office (Large)": 1.1,
-            "Hotel": 1.3,
-            "Retail Store": 0.85,
-            "Warehouse": 0.6,
-            "K-12 School": 0.8,
-            "University": 1.0,
-            "Hospital": 1.5,
-            "Other": 1.0
-        }
-        type_factor = type_factors.get(building_type, 1.0)
-
-        predicted_energy = base_consumption * floor_factor * age_factor * energy_star_factor * type_factor
-
         # Affichage avec métrique
         st.metric(
             label="Consommation Énergétique Estimée",
             value=f"{predicted_energy/1e6:.2f} M kBtu/an",
-            delta=f"{(energy_star_factor - 1) * 100:.1f}% vs moyenne" if energy_star != 50 else None,
-            delta_color="inverse"
+            delta="🤖 ML Model" if using_ml else "📊 Heuristique"
         )
 
         # Gauge chart
@@ -212,16 +221,10 @@ def main():
     with col2:
         st.subheader("🌿 Estimation des Émissions CO2")
 
-        # Estimation CO2 basée sur consommation
-        # Facteur d'émission moyen pour mix énergétique Seattle
-        emission_factor = 0.0001  # tonnes CO2 / kBtu (approximatif)
-        predicted_co2 = predicted_energy * emission_factor
-
         st.metric(
             label="Émissions CO2 Estimées",
             value=f"{predicted_co2:.1f} tonnes/an",
-            delta=f"{(1 - energy_star/100) * 50:.1f}% économisable" if energy_star < 75 else "Excellent!",
-            delta_color="inverse" if energy_star < 75 else "normal"
+            delta="🤖 ML Model" if using_ml else "📊 Heuristique"
         )
 
         # Comparaison avec équivalents
@@ -240,13 +243,18 @@ def main():
     st.markdown("---")
     st.subheader("📈 Analyse des Facteurs d'Impact")
 
+    # Facteurs d'impact par type de bâtiment
+    type_impact = {"Office (Small/Mid)": 0.9, "Office (Large)": 1.1, "Hotel": 1.3,
+                   "Retail Store": 0.85, "Warehouse": 0.6, "K-12 School": 0.8,
+                   "University": 1.0, "Hospital": 1.5, "Other": 1.0}
+
     # Graphique d'impact des features
     factors = {
         'Surface (GFA)': property_gfa / 50000,
         'Étages': floors / 10,
         'Âge': age / 50,
         'Score ENERGY STAR': (100 - energy_star) / 50,
-        'Type de bâtiment': type_factor
+        'Type de bâtiment': type_impact.get(building_type, 1.0)
     }
 
     fig_factors = px.bar(
