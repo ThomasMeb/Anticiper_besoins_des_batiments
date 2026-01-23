@@ -130,8 +130,11 @@ def create_shap_waterfall_plot(shap_df, expected_value, predicted_value):
         textposition='outside'
     ))
 
+    # Gérer le cas où expected_value est un array
+    base_value = expected_value[0] if hasattr(expected_value, '__len__') else expected_value
+
     fig.update_layout(
-        title=f"Impact des features sur la prédiction (base: {expected_value/1e6:.2f}M)",
+        title=f"Impact des features sur la prédiction (base: {base_value/1e6:.2f}M)",
         xaxis_title="Impact SHAP (kBtu)",
         yaxis_title="",
         height=400,
@@ -139,6 +142,69 @@ def create_shap_waterfall_plot(shap_df, expected_value, predicted_value):
     )
 
     return fig
+
+def get_recommendations(energy_star, age, property_gfa, building_type):
+    """Génère des recommandations basées sur les caractéristiques du bâtiment."""
+    recommendations = []
+
+    if energy_star < 50:
+        recommendations.append(
+            "⚠️ **Score ENERGY STAR faible** : Envisagez un audit énergétique et des rénovations."
+        )
+
+    if age > 50:
+        recommendations.append(
+            "🏗️ **Bâtiment ancien** : La modernisation des systèmes HVAC pourrait réduire la consommation de 20-30%."
+        )
+
+    if property_gfa > 100000:
+        recommendations.append(
+            "📊 **Grand bâtiment** : Implémentez un système de gestion de l'énergie (BMS) pour optimiser la consommation."
+        )
+
+    if building_type in ["Hotel", "Hospital"]:
+        recommendations.append(
+            "🔄 **Usage intensif** : Considérez la cogénération ou les panneaux solaires pour réduire l'empreinte carbone."
+        )
+
+    if not recommendations:
+        recommendations.append(
+            "✅ **Bon profil énergétique** : Continuez à monitorer et optimiser votre consommation."
+        )
+
+    return recommendations
+
+
+def predict_with_fallback(models, property_gfa, floors, age, energy_star, building_type):
+    """
+    Effectue une prédiction avec le modèle ML ou utilise un fallback heuristique.
+
+    Returns:
+        tuple: (predicted_energy, predicted_co2, using_ml, X, X_scaled, feature_names)
+    """
+    if models and 'energy_model' in models:
+        feature_names = models['energy_features']
+        X = prepare_features(property_gfa, floors, age, energy_star, building_type, feature_names)
+        X_scaled = models['energy_scaler'].transform(X)
+        predicted_energy = models['energy_model'].predict(X_scaled)[0]
+        predicted_co2 = models['co2_model'].predict(models['co2_scaler'].transform(X))[0]
+        return predicted_energy, predicted_co2, True, X, X_scaled, feature_names
+
+    # Fallback heuristique si modèles non disponibles
+    base_consumption = property_gfa * 50
+    floor_factor = 1 + (floors - 1) * 0.02
+    age_factor = 1 + (age / 100) * 0.3
+    energy_star_factor = 2 - (energy_star / 100)
+    type_factors = {
+        "Office (Small/Mid)": 0.9, "Office (Large)": 1.1, "Hotel": 1.3,
+        "Retail Store": 0.85, "Warehouse": 0.6, "K-12 School": 0.8,
+        "University": 1.0, "Hospital": 1.5, "Other": 1.0
+    }
+    type_factor = type_factors.get(building_type, 1.0)
+    predicted_energy = base_consumption * floor_factor * age_factor * energy_star_factor * type_factor
+    predicted_co2 = predicted_energy * 0.0001
+    return predicted_energy, predicted_co2, False, None, None, None
+
 
 def create_feature_importance_plot(model, feature_names):
     """Crée un graphique d'importance des features basé sur le modèle."""
@@ -247,27 +313,10 @@ def main():
     # Charger les modèles
     models = load_models()
 
-    # Prédiction avec les vrais modèles ML
-    if models and 'energy_model' in models:
-        feature_names = models['energy_features']
-        X = prepare_features(property_gfa, floors, age, energy_star, building_type, feature_names)
-        X_scaled = models['energy_scaler'].transform(X)
-        predicted_energy = models['energy_model'].predict(X_scaled)[0]
-        predicted_co2 = models['co2_model'].predict(models['co2_scaler'].transform(X))[0]
-        using_ml = True
-    else:
-        # Fallback heuristique si modèles non disponibles
-        base_consumption = property_gfa * 50
-        floor_factor = 1 + (floors - 1) * 0.02
-        age_factor = 1 + (age / 100) * 0.3
-        energy_star_factor = 2 - (energy_star / 100)
-        type_factors = {"Office (Small/Mid)": 0.9, "Office (Large)": 1.1, "Hotel": 1.3,
-                       "Retail Store": 0.85, "Warehouse": 0.6, "K-12 School": 0.8,
-                       "University": 1.0, "Hospital": 1.5, "Other": 1.0}
-        type_factor = type_factors.get(building_type, 1.0)
-        predicted_energy = base_consumption * floor_factor * age_factor * energy_star_factor * type_factor
-        predicted_co2 = predicted_energy * 0.0001
-        using_ml = False
+    # Prédiction avec les vrais modèles ML ou fallback heuristique
+    predicted_energy, predicted_co2, using_ml, X, X_scaled, feature_names = predict_with_fallback(
+        models, property_gfa, floors, age, energy_star, building_type
+    )
 
     # Colonnes principales
     col1, col2 = st.columns(2)
@@ -403,23 +452,7 @@ def main():
     st.markdown("---")
     st.subheader("💡 Recommandations")
 
-    recommendations = []
-
-    if energy_star < 50:
-        recommendations.append("⚠️ **Score ENERGY STAR faible** : Envisagez un audit énergétique et des rénovations.")
-
-    if age > 50:
-        recommendations.append("🏗️ **Bâtiment ancien** : La modernisation des systèmes HVAC pourrait réduire la consommation de 20-30%.")
-
-    if property_gfa > 100000:
-        recommendations.append("📊 **Grand bâtiment** : Implémentez un système de gestion de l'énergie (BMS) pour optimiser la consommation.")
-
-    if building_type in ["Hotel", "Hospital"]:
-        recommendations.append("🔄 **Usage intensif** : Considérez la cogénération ou les panneaux solaires pour réduire l'empreinte carbone.")
-
-    if not recommendations:
-        recommendations.append("✅ **Bon profil énergétique** : Continuez à monitorer et optimiser votre consommation.")
-
+    recommendations = get_recommendations(energy_star, age, property_gfa, building_type)
     for rec in recommendations:
         st.markdown(rec)
 
