@@ -23,5 +23,9 @@ plotly>=5.15.0
 # Model persistence
 joblib>=1.3.0
 
+# Testing
+pytest>=7.0.0
+pytest-cov>=4.0.0
+
 # Optional: For reproducibility
 # python==3.8.x  # Uncomment and specify your Python version

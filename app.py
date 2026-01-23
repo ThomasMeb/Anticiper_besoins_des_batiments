@@ -10,6 +10,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 from pathlib import Path
 import joblib
+import shap
 
 # Configuration de la page
 st.set_page_config(
@@ -91,6 +92,93 @@ def prepare_features(property_gfa, floors, age, energy_star, building_type, feat
     # Créer le DataFrame dans l'ordre correct
     df = pd.DataFrame([all_features])[feature_names]
     return df
+
+@st.cache_resource
+def get_shap_explainer(_model):
+    """Crée l'explainer SHAP pour le modèle (caché pour performance)."""
+    return shap.TreeExplainer(_model)
+
+def compute_shap_values(explainer, X_scaled, feature_names):
+    """Calcule les valeurs SHAP pour une prédiction."""
+    shap_values = explainer.shap_values(X_scaled)
+
+    # Créer un DataFrame avec les valeurs SHAP
+    shap_df = pd.DataFrame({
+        'Feature': feature_names,
+        'SHAP Value': shap_values[0],
+        'Abs SHAP': np.abs(shap_values[0])
+    }).sort_values('Abs SHAP', ascending=False)
+
+    return shap_df, explainer.expected_value
+
+def create_shap_waterfall_plot(shap_df, expected_value, predicted_value):
+    """Crée un waterfall plot SHAP avec Plotly."""
+    # Top 10 features
+    top_features = shap_df.head(10).copy()
+    top_features = top_features.iloc[::-1]  # Inverser pour affichage
+
+    colors = ['#ff6b6b' if v > 0 else '#4ecdc4' for v in top_features['SHAP Value']]
+
+    fig = go.Figure()
+
+    fig.add_trace(go.Bar(
+        x=top_features['SHAP Value'],
+        y=top_features['Feature'],
+        orientation='h',
+        marker_color=colors,
+        text=[f"{v:+.2f}" for v in top_features['SHAP Value']],
+        textposition='outside'
+    ))
+
+    fig.update_layout(
+        title=f"Impact des features sur la prédiction (base: {expected_value/1e6:.2f}M)",
+        xaxis_title="Impact SHAP (kBtu)",
+        yaxis_title="",
+        height=400,
+        showlegend=False
+    )
+
+    return fig
+
+def create_feature_importance_plot(model, feature_names):
+    """Crée un graphique d'importance des features basé sur le modèle."""
+    importance_df = pd.DataFrame({
+        'Feature': feature_names,
+        'Importance': model.feature_importances_
+    }).sort_values('Importance', ascending=False).head(10)
+
+    # Renommer les features pour plus de clarté
+    name_mapping = {
+        'PropertyGFATotal': 'Surface totale',
+        'LargestPropertyUseTypeGFA': 'Surface usage principal',
+        'ENERGYSTARScore': 'Score ENERGY STAR',
+        'Age': 'Âge du bâtiment',
+        'NumberofFloors': "Nombre d'étages",
+        'PropertyGFABuilding_Pct': '% Surface bâtiment',
+        'PropertyGFAParking_Pct': '% Surface parking',
+        'NumberofBuildings': 'Nombre de bâtiments'
+    }
+
+    importance_df['Feature_Display'] = importance_df['Feature'].map(
+        lambda x: name_mapping.get(x, x.replace('PropType_', '').replace('District_', ''))
+    )
+
+    fig = px.bar(
+        importance_df,
+        x='Importance',
+        y='Feature_Display',
+        orientation='h',
+        title="🔍 Importance des Features (Random Forest)",
+        color='Importance',
+        color_continuous_scale='Viridis'
+    )
+    fig.update_layout(
+        yaxis={'categoryorder': 'total ascending'},
+        showlegend=False,
+        height=400
+    )
+
+    return fig
 
 # =============================================================================
 # INTERFACE UTILISATEUR
@@ -267,6 +355,49 @@ def main():
     )
     fig_factors.update_layout(showlegend=False)
     st.plotly_chart(fig_factors, use_container_width=True)
+
+    # Section SHAP - Interprétabilité ML
+    if using_ml:
+        st.markdown("---")
+        st.subheader("🔬 Interprétabilité du Modèle (SHAP)")
+
+        st.markdown("""
+        > **SHAP** (SHapley Additive exPlanations) permet de comprendre comment chaque caractéristique
+        influence la prédiction du modèle de Machine Learning.
+        """)
+
+        shap_col1, shap_col2 = st.columns(2)
+
+        with shap_col1:
+            # Feature Importance globale
+            fig_importance = create_feature_importance_plot(
+                models['energy_model'],
+                feature_names
+            )
+            st.plotly_chart(fig_importance, use_container_width=True)
+
+        with shap_col2:
+            # SHAP values pour cette prédiction
+            try:
+                explainer = get_shap_explainer(models['energy_model'])
+                shap_df, expected_value = compute_shap_values(
+                    explainer, X_scaled, feature_names
+                )
+                fig_shap = create_shap_waterfall_plot(
+                    shap_df, expected_value, predicted_energy
+                )
+                st.plotly_chart(fig_shap, use_container_width=True)
+            except Exception as e:
+                st.info("📊 Analyse SHAP individuelle non disponible")
+
+        # Insights SHAP
+        st.markdown("##### 💡 Insights clés du modèle")
+        st.markdown("""
+        - **Surface totale (GFA)** : Principal prédicteur (~40% d'importance)
+        - **Score ENERGY STAR** : Impact significatif sur l'efficacité
+        - **Âge du bâtiment** : Les bâtiments anciens consomment plus
+        - **Type de bâtiment** : Hôpitaux et hôtels ont les plus fortes consommations
+        """)
 
     # Recommandations
     st.markdown("---")
