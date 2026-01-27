@@ -41,10 +41,11 @@ ENV/
 .DS_Store
 Thumbs.db
 
-# Data (optionnel - décommenter si vous ne voulez pas versionner les données)
-# *.csv
-# data/raw/*
-# data/processed/*
+# Data (downloaded from Kaggle - not versioned)
+data/*.csv
+data/raw/
+data/processed/
+!data/.gitkeep
 
 # Models (garder les modèles dans models/)
 *.pkl
