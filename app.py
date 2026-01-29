@@ -436,7 +436,7 @@ def main():
                     shap_df, expected_value, predicted_energy
                 )
                 st.plotly_chart(fig_shap, use_container_width=True)
-            except Exception as e:
+            except Exception:
                 st.info("📊 Analyse SHAP individuelle non disponible")
 
         # Insights SHAP
